@@ -19,6 +19,7 @@ deploy {
             // or from command line. If not found an exception will be thrown.
             // You can use getTeamOrDefault(team) instead of getTeamNumber if you
             // want to store a team number in this file.
+            addresses = ["roborio-9573-FRC.local", "10.95.73.2", "172.22.11.2"]
             team = project.frc.getTeamNumber()
             debug = project.frc.getDebugOrDefault(false)
 
