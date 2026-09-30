@@ -1,0 +1,8 @@
+{
+    "python.analysis.typeCheckingMode": "standard",
+    "cSpell.words": [
+        "canbus",
+        "TELEOP",
+        "wpilib"
+    ]
+}
