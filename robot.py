@@ -25,6 +25,8 @@ class MyRobot(wpilib.TimedRobot):
         """
         logger.info("Initializing...")
 
+        self.tick_index = 0
+
         self.controller = wpilib.XboxController(0)
         self.timer = wpilib.Timer()
 
@@ -32,6 +34,8 @@ class MyRobot(wpilib.TimedRobot):
         self.intake = IntakeSubsystem(17, self.bus)
 
     def tick(self, state: RobotState):
+        self.tick_index += 1
+
         if state == RobotState.TELEOP:
             if abs(self.controller.getRightY()) > 0.03:
                 self.intake.run(self.controller.getRightY() * 0.25)
@@ -40,18 +44,26 @@ class MyRobot(wpilib.TimedRobot):
         else:
             self.intake.stop()
 
+    # * Init methods
+
     def autonomousInit(self):
         """Init on auto."""
+        self.logger.info("Auto starting")
         self.timer.restart()
+
+    def teleopInit(self):
+        """Init on teleop"""
+        self.logger.info("Teleop starting")
+
+    def testInit(self):
+        """Init on test."""
+        self.logger.info("Test starting")
+
+    # * Tick Methods
 
     def autonomousPeriodic(self):
         """Tick on auto."""
         self.tick(RobotState.AUTO)
-
-    def teleopInit(self):
-        """Init on teleop"""
-        if not self.controller.isConnected():
-            logger.error("Missing controller")
 
     def teleopPeriodic(self):
         """Tick on teleop"""
@@ -61,11 +73,9 @@ class MyRobot(wpilib.TimedRobot):
         """Tick on disabled"""
         self.tick(RobotState.DISABLED)
 
-    def testInit(self):
-        """This function is called once each time the robot enters test mode."""
-
     def testPeriodic(self):
-        """This function is called periodically during test mode."""
+        """Tick on test."""
+        self.tick(RobotState.TEST)
 
 
 if __name__ == "__main__":

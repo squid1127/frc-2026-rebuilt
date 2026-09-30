@@ -42,4 +42,3 @@ class IntakeSubsystem:
     def run(self, value: float):
         """Spin the motor with this strength"""
         self.motor.set(value)
-        logger.info(f"Motor voltage: {self.motor.get_motor_voltage()}")
