@@ -1,82 +1,63 @@
-"""Main robot class"""
+"""Container for the project"""
+
+import logging
 
 import wpilib
-import logging
-import coloredlogs
-from phoenix6.canbus import CANBus
-import math
+from coloredlogs import install as cl_install
 
-from models.state import RobotState
-from subsystems.intake import IntakeSubsystem
-
-coloredlogs.install(
+cl_install(
     level=logging.DEBUG,
     fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
+from src.frc_2026_rebuilt import Robot, RobotState
 
-class MyRobot(wpilib.TimedRobot):
+
+class RobotContainer(wpilib.TimedRobot):
     def robotInit(self):
         """
         This function is called upon program startup and
         should be used for any initialization code.
         """
-        logger.info("Initializing...")
-
-        self.tick_index = 0
-
-        self.controller = wpilib.XboxController(0)
-        self.timer = wpilib.Timer()
-
-        self.bus = CANBus()
-        self.intake = IntakeSubsystem(17, self.bus)
-
-    def tick(self, state: RobotState):
-        self.tick_index += 1
-
-        if state == RobotState.TELEOP:
-            if abs(self.controller.getRightY()) > 0.03:
-                self.intake.run(self.controller.getRightY() * 0.25)
-            else:
-                self.intake.stop()
-        else:
-            self.intake.stop()
-
-    # * Init methods
+        logger.info("Robot starting up...")
+        self.robot = Robot()
 
     def autonomousInit(self):
         """Init on auto."""
-        self.logger.info("Auto starting")
-        self.timer.restart()
+        self.robot.state_transition(RobotState.AUTO)
 
     def teleopInit(self):
         """Init on teleop"""
-        self.logger.info("Teleop starting")
+        self.robot.state_transition(RobotState.TELEOP)
 
     def testInit(self):
         """Init on test."""
-        self.logger.info("Test starting")
+        self.robot.state_transition(RobotState.TEST)
+
+    def disabledInit(self):
+        """Init on disabled"""
+        self.robot.state_transition(RobotState.DISABLED)
 
     # * Tick Methods
 
     def autonomousPeriodic(self):
         """Tick on auto."""
-        self.tick(RobotState.AUTO)
+        self.robot.tick(RobotState.AUTO)
 
     def teleopPeriodic(self):
         """Tick on teleop"""
-        self.tick(RobotState.TELEOP)
+        self.robot.tick(RobotState.TELEOP)
 
     def disabledPeriodic(self):
         """Tick on disabled"""
-        self.tick(RobotState.DISABLED)
+        self.robot.tick(RobotState.DISABLED)
 
     def testPeriodic(self):
         """Tick on test."""
-        self.tick(RobotState.TEST)
+        self.robot.tick(RobotState.TEST)
 
 
 if __name__ == "__main__":
-    wpilib.run(MyRobot)
+    wpilib.run(RobotContainer)

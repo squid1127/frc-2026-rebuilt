@@ -1,10 +1,11 @@
 """Intake subsystem"""
 
-from phoenix6.hardware.talon_fx import TalonFX
-from phoenix6.canbus import CANBus
-from phoenix6.signals import NeutralModeValue, InvertedValue
-from phoenix6.configs.talon_fx_configs import TalonFXConfiguration
 from logging import getLogger
+
+from phoenix6.canbus import CANBus
+from phoenix6.configs.talon_fx_configs import TalonFXConfiguration
+from phoenix6.hardware.talon_fx import TalonFX
+from phoenix6.signals import InvertedValue, NeutralModeValue
 
 logger = getLogger(__name__)
 
