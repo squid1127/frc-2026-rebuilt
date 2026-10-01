@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "aaron-bond.better-comments",
+        "sonarsource.sonarlint-vscode",
+        "ms-python.vscode-python-envs",
+        "ms-python.python",
+        "ms-python.black-formatter",
+        "tamasfe.even-better-toml",
+        "actboy168.tasks"
+    ]
+}

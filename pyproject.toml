@@ -1,6 +1,10 @@
 [project]
 name = "frc-2026-rebuilt"
 description = "Python rewrite of 9573's robot code"
+version = "0.1.0"
+dependencies  = [
+    "robotpy"
+]
 
 #
 # Use this configuration file to control what RobotPy packages are installed
@@ -17,7 +21,7 @@ robotpy_version = "2026.2.2"
 components = [
     "all",
     # "apriltag",
-    # "commands2",
+    "commands2",
     # "cscore",
     # "romi",
     # "sim",
@@ -26,4 +30,4 @@ components = [
 
 # Other pip packages to install, such as vendor packages (each element
 # is equivalent to a line in requirements.txt)
-requires = ["phoenix6", "coloredlogs"]
+requires = ["phoenix6", "coloredlogs", "robotpy-rev"]

@@ -1,0 +1,34 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "RP: Sync",
+            "type": "shell",
+            "command": "./.venv/Scripts/robotpy.exe sync",
+            "icon": {
+                "id": "download"
+            },
+            "detail": "Sync (download) packages in pyproject.toml to this device"
+        },
+        {
+            "label": "RP: Deploy",
+            "type": "shell",
+            "command": "./.venv/Scripts/robotpy.exe deploy",
+            "icon": {
+                "id": "run"
+            },
+            "detail": "Deploy the code to the bot"
+        },
+        {
+            "label": "RP: Sim",
+            "type": "shell",
+            "command": "./.venv/Scripts/robotpy.exe sim",
+            "icon": {
+                "id": "debug"
+            },
+            "detail": "Simulate the code locally"
+        },
+    ]
+}

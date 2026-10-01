@@ -1,6 +1,6 @@
 """9573 robot code"""
 
-from .bot import Robot
+from .bot import RobotContainer
 from .models.state import RobotState
 
-__all__ = ["Robot", "RobotState"]
+__all__ = ["RobotContainer", "RobotState"]

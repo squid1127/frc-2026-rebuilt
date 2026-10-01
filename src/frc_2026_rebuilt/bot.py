@@ -1,41 +1,54 @@
 """Main robot class"""
 
-from logging import getLogger
-
 import wpilib
-from phoenix6.canbus import CANBus
+import commands2
+from phoenix6.canbus import CANBus as PhCANBus
+from typing import Any, Callable
 
 from .models.state import RobotState
+from .subsystems.launcher import LauncherSubsystem
 from .subsystems.intake import IntakeSubsystem
+from .logger import get_logger
 
-logger = getLogger(__name__)
+logger = get_logger(__name__)
 
 
-class Robot:
+class RobotContainer(commands2.TimedCommandRobot):
     """Main robot class"""
 
     def __init__(self):
         logger.info("Initializing...")
 
-        self.tick_index = 0
+        super().__init__()
 
-        self.controller = wpilib.XboxController(0)
-        self.timer = wpilib.Timer()
+        self.controller = commands2.button.CommandXboxController(0)
 
-        self.bus = CANBus()
-        self.intake = IntakeSubsystem(17, self.bus)
+        self.bus = PhCANBus()
+        self.launcher = LauncherSubsystem(17, self.bus)
+        self.intake = IntakeSubsystem(14)
 
-    def tick(self, state: RobotState):
-        """Executed every robot tick"""
-        self.tick_index += 1
+        self.set_bindings()
 
-        if state == RobotState.TELEOP:
-            if abs(self.controller.getRightY()) > 0.03:
-                self.intake.run(self.controller.getRightY() * 0.25)
-            else:
-                self.intake.stop()
-        else:
-            self.intake.stop()
-
-    def state_transition(self, new_state: RobotState):
-        logger.info(f"Transitioning to {new_state.name}")
+    def set_bindings(self) -> None:
+        """Sets the bindings for each subsystem"""
+        self.controller.a().whileTrue(
+            commands2.cmd.startEnd(
+                lambda: self.launcher.set(0.3),
+                lambda: self.launcher.stop(),
+                self.launcher
+            )
+        )
+        self.controller.rightBumper().whileTrue(
+            commands2.cmd.startEnd(
+                lambda: self.intake.set(0.3),
+                lambda: self.intake.stop(),
+                self.intake
+            )
+        )
+        self.controller.rightTrigger().whileTrue(
+            commands2.cmd.startEnd(
+                lambda: self.intake.set(-0.3),
+                lambda: self.intake.stop(),
+                self.intake
+            )
+        )
