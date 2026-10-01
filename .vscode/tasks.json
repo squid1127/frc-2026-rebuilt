@@ -29,6 +29,14 @@
                 "id": "debug"
             },
             "detail": "Simulate the code locally"
+        },        {
+            "label": "Ruff",
+            "type": "shell",
+            "command": "py -m ruff check --fix --unsafe-fixes",
+            "icon": {
+                "id": "check"
+            },
+            "detail": "Check the code against ruff"
         },
     ]
 }

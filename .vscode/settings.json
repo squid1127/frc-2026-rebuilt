@@ -1,8 +1,12 @@
 {
     "python.analysis.typeCheckingMode": "standard",
     "cSpell.words": [
+        "AHRS",
         "canbus",
+        "cancoder",
+        "navx",
         "TELEOP",
-        "wpilib"
+        "wpilib",
+        "wpimath"
     ]
 }

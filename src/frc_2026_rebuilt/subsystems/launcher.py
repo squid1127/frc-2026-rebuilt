@@ -2,11 +2,11 @@
 
 
 from commands2 import Subsystem
-from wpimath.filter import SlewRateLimiter
 from phoenix6.canbus import CANBus
 from phoenix6.configs.talon_fx_configs import TalonFXConfiguration
 from phoenix6.hardware.talon_fx import TalonFX
 from phoenix6.signals import InvertedValue, NeutralModeValue
+from wpimath.filter import SlewRateLimiter
 
 from ..logger import get_logger
 
@@ -29,7 +29,7 @@ class LauncherSubsystem(Subsystem):
         if not self.motor.isAlive():
             raise RuntimeError("Motor is reportedly dead")
 
-        self.limiter = SlewRateLimiter(0.05)
+        self.limiter = SlewRateLimiter(0.1)
         logger.info(f"Intake system ready (IDs: {motor_id})")
 
     def set_motor_options(self):
@@ -64,3 +64,7 @@ class LauncherSubsystem(Subsystem):
             # logger.info(f"Target: {value} ({self.target}), motor at {self.motor.get_motor_voltage()}" )
         else:
             self.motor.stopMotor()
+
+        if self.motor.get_stator_current().value > 60:
+            logger.error("Launcher max current exceeded!!")
+            self.target = 0

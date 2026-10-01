@@ -6,6 +6,7 @@
         "ms-python.python",
         "ms-python.black-formatter",
         "tamasfe.even-better-toml",
-        "actboy168.tasks"
+        "actboy168.tasks",
+        "streetsidesoftware.code-spell-checker"
     ]
 }

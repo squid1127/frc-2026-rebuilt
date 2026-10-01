@@ -1,7 +1,8 @@
 """Handle logging for the project"""
 
-from coloredlogs import install as cl_install
 import logging
+
+from coloredlogs import install as cl_install
 
 cl_install(
     level=logging.DEBUG,

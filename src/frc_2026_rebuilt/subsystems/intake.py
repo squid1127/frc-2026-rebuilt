@@ -2,9 +2,8 @@
 
 from logging import getLogger
 
-from commands2 import Subsystem
-from wpimath.filter import SlewRateLimiter
 import rev
+from commands2 import Subsystem
 
 logger = getLogger(__name__)
 
