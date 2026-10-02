@@ -62,9 +62,9 @@ class DrivetrainSubsystem(Subsystem):
         self.rotation_target = 0.0
         self.field_relative = True
         self.yaw_offset = Rotation2d()
-        self.forward_limiter = SlewRateLimiter(3.0)
-        self.strafe_limiter = SlewRateLimiter(3.0)
-        self.rotation_limiter = SlewRateLimiter(3.0)
+        self.forward_limiter = SlewRateLimiter(2)
+        self.strafe_limiter = SlewRateLimiter(2)
+        self.rotation_limiter = SlewRateLimiter(2)
         logger.info("Swerve system ready")
 
     def stop(self) -> None:
