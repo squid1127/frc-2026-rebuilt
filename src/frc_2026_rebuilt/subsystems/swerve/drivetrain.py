@@ -61,6 +61,7 @@ class DrivetrainSubsystem(Subsystem):
         self.strafe_target = 0.0
         self.rotation_target = 0.0
         self.field_relative = True
+        self.yaw_offset = Rotation2d()
         self.forward_limiter = SlewRateLimiter(3.0)
         self.strafe_limiter = SlewRateLimiter(3.0)
         self.rotation_limiter = SlewRateLimiter(3.0)
@@ -81,6 +82,10 @@ class DrivetrainSubsystem(Subsystem):
     def reset_yaw(self) -> None:
         """Reset the yaw measurement of the bot"""
         self.imu.reset_yaw()
+
+    def offset_yaw(self, degrees: float) -> None:
+        """Adjust the yaw used for field-relative driving."""
+        self.yaw_offset += Rotation2d.fromDegrees(degrees)
 
     def lock(self) -> None:
         """Hold the wheels in an X pattern to resist being pushed."""
@@ -143,7 +148,7 @@ class DrivetrainSubsystem(Subsystem):
                 forward * self.config.max_speed_mps,
                 strafe * self.config.max_speed_mps,
                 rotation * max_angular_speed,
-                self.imu.get_yaw(),
+                self.imu.get_yaw() + self.yaw_offset,
             )
         else:
             chassis_speeds = ChassisSpeeds(

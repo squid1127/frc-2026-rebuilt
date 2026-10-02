@@ -26,7 +26,7 @@ class IMU:
         logger.info("Gyro ready")
 
     def get_yaw(self) -> Rotation2d:
-        return self.device.getRotation2d()
+        return self.device.getRotation2d() * -1
     def get_yaw_rate_dps(self) -> float:
         return -self.device.getRate()
     def is_connected(self) -> bool:

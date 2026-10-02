@@ -3,7 +3,7 @@
 import commands2
 from phoenix6.canbus import CANBus as PhCANBus
 
-from .commands import SwerveEncoderDebugCommand
+from .commands import SwerveDriveCommand, SwerveEncoderDebugCommand
 from .config import RobotConfig
 from .current_config import CurrentBotConfig
 from .logger import get_logger
@@ -31,22 +31,19 @@ class RobotContainer(commands2.TimedCommandRobot):
         self.launcher = LauncherSubsystem(config.launcher.motor_id, self.bus)
         self.intake = IntakeSubsystem(config.intake.motor_id)
         self.swerve = DrivetrainSubsystem(config.swerve, bus=self.bus)
+        self.field_relative_drive = SwerveDriveCommand(
+            self.swerve, self.controller, field_relative=True
+        )
+        self.robot_relative_drive = SwerveDriveCommand(
+            self.swerve, self.controller, field_relative=False
+        )
         self.encoder_debug_command = SwerveEncoderDebugCommand(self.swerve)
 
         self.set_bindings()
 
     def set_bindings(self) -> None:
         """Sets the bindings for each subsystem"""
-        self.swerve.setDefaultCommand(
-            commands2.cmd.run(
-                lambda: self.swerve.set(
-                    -self.controller.getLeftY(),
-                    -self.controller.getLeftX(),
-                    -self.controller.getRightX(),
-                ),
-                self.swerve,
-            ),
-        )
+        self.swerve.setDefaultCommand(self.field_relative_drive)
         self.controller.y().whileTrue(
             commands2.cmd.run(
                 lambda: self.swerve.set(
@@ -61,7 +58,10 @@ class RobotContainer(commands2.TimedCommandRobot):
         )
         self.controller.leftBumper().onTrue(
             commands2.cmd.runOnce(
-                lambda: (self.swerve.reset_yaw(), logger.info("Reset yaw")),
+                lambda: (
+                    self.swerve.reset_yaw(),
+                    logger.info("Reset swerve yaw"),
+                ),
                 self.swerve,
             )
         )
