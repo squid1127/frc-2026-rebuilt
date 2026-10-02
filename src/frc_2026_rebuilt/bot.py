@@ -6,7 +6,7 @@ from phoenix6.canbus import CANBus as PhCANBus
 from .logger import get_logger
 from .subsystems.intake import IntakeSubsystem
 from .subsystems.launcher import LauncherSubsystem
-from .subsystems.swerve import SwerveConfig, SwerveModuleConfig, DrivetrainSubsystem
+from .subsystems.swerve import DrivetrainSubsystem, SwerveConfig, SwerveModuleConfig
 
 logger = get_logger(__name__)
 

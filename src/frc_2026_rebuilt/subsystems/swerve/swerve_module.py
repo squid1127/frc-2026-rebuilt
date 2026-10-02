@@ -1,13 +1,13 @@
 """Represents an individual swerve module with a drive motor, steer motor, and encoder"""
 
-from .config import SwerveModuleConfig
 from phoenix6.canbus import CANBus
 from phoenix6.configs.talon_fx_configs import TalonFXConfiguration
-from phoenix6.hardware.talon_fx import TalonFX
 from phoenix6.hardware.cancoder import CANcoder
-from phoenix6.configs.cancoder_configs import CANcoderConfiguration
+from phoenix6.hardware.talon_fx import TalonFX
 from phoenix6.signals import InvertedValue, NeutralModeValue
+
 from ...logger import get_logger
+from .config import SwerveModuleConfig
 
 logger = get_logger(__name__)
 

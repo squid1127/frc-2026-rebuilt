@@ -1,7 +1,7 @@
 """Swerve subsystem"""
 
 from .config import SwerveConfig, SwerveModuleConfig
-from .imu import IMU
 from .drivetrain import DrivetrainSubsystem
+from .imu import IMU
 
-__all__ = ["DrivetrainSubsystem", "IMU", "SwerveConfig", "SwerveModuleConfig"]
+__all__ = ["IMU", "DrivetrainSubsystem", "SwerveConfig", "SwerveModuleConfig"]
