@@ -3,10 +3,13 @@
 import commands2
 from phoenix6.canbus import CANBus as PhCANBus
 
+from .commands import SwerveEncoderDebugCommand
+from .config import RobotConfig
+from .current_config import CurrentBotConfig
 from .logger import get_logger
 from .subsystems.intake import IntakeSubsystem
 from .subsystems.launcher import LauncherSubsystem
-from .subsystems.swerve import DrivetrainSubsystem, SwerveConfig, SwerveModuleConfig
+from .subsystems.swerve import DrivetrainSubsystem
 
 logger = get_logger(__name__)
 
@@ -14,37 +17,57 @@ logger = get_logger(__name__)
 class RobotContainer(commands2.TimedCommandRobot):
     """Main robot class"""
 
-    def __init__(self):
+    CRAWL_SPEED = 0.15
+
+    def __init__(self, config: RobotConfig = CurrentBotConfig.CONFIG):
         logger.info("Initializing...")
 
         super().__init__()
+        self.config = config
 
         self.controller = commands2.button.CommandXboxController(0)
 
         self.bus = PhCANBus()
-        self.launcher = LauncherSubsystem(17, self.bus)
-        self.intake = IntakeSubsystem(14)
-        swerve_config = SwerveConfig(
-            imu_usb=1,
-            fr=SwerveModuleConfig(
-                drive_motor_id=9, steer_motor_id=8, encoder_id=10, encoder_offset=0
-            ),
-            fl=SwerveModuleConfig(
-                drive_motor_id=6, steer_motor_id=5, encoder_id=7, encoder_offset=0
-            ),
-            br=SwerveModuleConfig(
-                drive_motor_id=3, steer_motor_id=2, encoder_id=4, encoder_offset=0
-            ),
-            bl=SwerveModuleConfig(
-                drive_motor_id=6, steer_motor_id=5, encoder_id=7, encoder_offset=0
-            ),
-        )
-        self.swerve = DrivetrainSubsystem(swerve_config, bus=self.bus)
+        self.launcher = LauncherSubsystem(config.launcher.motor_id, self.bus)
+        self.intake = IntakeSubsystem(config.intake.motor_id)
+        self.swerve = DrivetrainSubsystem(config.swerve, bus=self.bus)
+        self.encoder_debug_command = SwerveEncoderDebugCommand(self.swerve)
 
         self.set_bindings()
 
     def set_bindings(self) -> None:
         """Sets the bindings for each subsystem"""
+        self.swerve.setDefaultCommand(
+            commands2.cmd.run(
+                lambda: self.swerve.set(
+                    -self.controller.getLeftY(),
+                    -self.controller.getLeftX(),
+                    -self.controller.getRightX(),
+                ),
+                self.swerve,
+            ),
+        )
+        self.controller.y().whileTrue(
+            commands2.cmd.run(
+                lambda: self.swerve.set(
+                    self.CRAWL_SPEED,
+                    field_relative=False,
+                ),
+                self.swerve,
+            )
+        )
+        self.controller.leftTrigger().whileTrue(
+            commands2.cmd.run(self.swerve.lock, self.swerve)
+        )
+        self.controller.leftBumper().onTrue(
+            commands2.cmd.runOnce(
+                lambda: (self.swerve.reset_yaw(), logger.info("Reset yaw")),
+                self.swerve,
+            )
+        )
+
+
+        # self.controller.x().onTrue(self.encoder_debug_command)
         self.controller.a().whileTrue(
             commands2.cmd.startEnd(
                 lambda: self.launcher.set(0.6),

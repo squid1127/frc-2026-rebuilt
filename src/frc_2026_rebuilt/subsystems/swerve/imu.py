@@ -21,21 +21,21 @@ class IMU:
         super().__init__()
 
         self.index = index
-        self.imu = AHRS(AHRS.NavXComType.kUSB1 if index == 1 else AHRS.NavXComType.kUSB2)
+        self.device = AHRS(AHRS.NavXComType.kUSB1 if index == 1 else AHRS.NavXComType.kUSB2)
 
         logger.info("Gyro ready")
 
     def get_yaw(self) -> Rotation2d:
-        return self.imu.getRotation2d()
+        return self.device.getRotation2d()
     def get_yaw_rate_dps(self) -> float:
-        return -self.imu.getRate()
+        return -self.device.getRate()
     def is_connected(self) -> bool:
-        return self.imu.isConnected()
+        return self.device.isConnected()
     def get_pitch(self) -> float:
-        return self.imu.getPitch()
+        return self.device.getPitch()
     def get_roll(self) -> float:
-        return self.imu.getRoll()
+        return self.device.getRoll()
 
     def reset_yaw(self):
         """Reset the IUM's yaw reading"""
-        self.imu.reset()
+        self.device.reset()
