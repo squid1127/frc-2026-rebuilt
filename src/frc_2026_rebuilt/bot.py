@@ -66,11 +66,10 @@ class RobotContainer(commands2.TimedCommandRobot):
             )
         )
 
-
         # self.controller.x().onTrue(self.encoder_debug_command)
         self.controller.a().whileTrue(
             commands2.cmd.startEnd(
-                lambda: self.launcher.set(0.6),
+                lambda: self.launcher.set(0.525),
                 lambda: self.launcher.stop(),
                 self.launcher,
             )

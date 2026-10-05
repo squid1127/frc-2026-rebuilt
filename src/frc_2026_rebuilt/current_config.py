@@ -14,8 +14,8 @@ class CurrentBotConfig:
             imu_usb=1,
             wheelbase_m=0.5715,
             trackwidth_m=0.5715,
-            max_speed_mps=0.1,
-            speed_scale=0.2,
+            max_speed_mps=0.6,
+            speed_scale=0.3,
             steering_scale=0.15,
             max_steering_output=0.4,
             fr=SwerveModuleConfig(
