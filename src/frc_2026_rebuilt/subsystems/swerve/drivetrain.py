@@ -122,7 +122,7 @@ class DrivetrainSubsystem(Subsystem):
                 module.set_desired_state(
                     state,
                     self.config.max_speed_mps,
-                    self.config.steering_kp,
+                    self.config.steering_scale,
                     self.config.max_steering_output,
                 )
             return
@@ -165,7 +165,7 @@ class DrivetrainSubsystem(Subsystem):
             module.set_desired_state(
                 state,
                 self.config.max_speed_mps,
-                self.config.steering_kp,
+                self.config.steering_scale,
                 self.config.max_steering_output,
             )
 

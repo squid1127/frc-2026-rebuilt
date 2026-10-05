@@ -47,7 +47,7 @@ class SwerveModule:
         """Configure motor options"""
 
         drive_config = TalonFXConfiguration()
-        drive_config.motor_output.neutral_mode = NeutralModeValue.COAST
+        drive_config.motor_output.neutral_mode = NeutralModeValue.BRAKE
         drive_config.motor_output.inverted = (
             InvertedValue.CLOCKWISE_POSITIVE
             if self.config.drive_motor_inverted
