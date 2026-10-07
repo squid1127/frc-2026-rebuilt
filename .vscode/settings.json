@@ -4,9 +4,12 @@
         "AHRS",
         "canbus",
         "cancoder",
+        "deadband",
         "navx",
+        "robotpy",
         "TELEOP",
         "trackwidth",
+        "venv",
         "wpilib",
         "wpimath"
     ]
