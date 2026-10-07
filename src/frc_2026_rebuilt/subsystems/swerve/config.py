@@ -36,7 +36,9 @@ class SwerveConfig:
         trackwidth_m: The distance between the left and right wheels in meters (from the center of each wheel)
         max_speed_mps: The maximum speed of the robot in meters per second
         speed_scale: The scale factor for the robot's speed
+        slew_rate: The maximum rate of change for the robot's speed
         steering_scale: The scale factor for the steering modules
+        steering_slew_rate: The maximum rate of change for the steering modules
         max_steering_output: The maximum output for the steering control
         fr: Configuration for the front-right swerve module
         fl: Configuration for the front-left swerve module
@@ -49,7 +51,9 @@ class SwerveConfig:
     trackwidth_m: float
     max_speed_mps: float
     speed_scale: float
+    slew_rate: float
     steering_scale: float
+    steering_slew_rate: float
     max_steering_output: float
     fr: SwerveModuleConfig
     fl: SwerveModuleConfig

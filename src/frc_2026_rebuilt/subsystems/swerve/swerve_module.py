@@ -32,16 +32,28 @@ class SwerveModule:
         self.set_motor_options()
         self.set_encoder_options()
 
-        if not self.drive_motor.isAlive():
-            raise RuntimeError(f"{name}: Drive Motor is reportedly dead")
+        if not wpilib.RobotBase.isSimulation() and self.drive_motor.is_connected and not self.drive_motor.isAlive():
+            logger.error(
+                "%s drive motor is not responding (CAN ID %s)",
+                name,
+                config.drive_motor_id,
+            )
 
-        if not self.steer_motor.isAlive():
-            raise RuntimeError(f"{name}: Steering Motor is reportedly dead")
+        if not wpilib.RobotBase.isSimulation() and self.steer_motor.is_connected and not self.steer_motor.isAlive():
+            logger.error(
+                "%s steering motor is not responding (CAN ID %s)",
+                name,
+                config.steer_motor_id,
+            )
 
         if not wpilib.RobotBase.isSimulation() and not self.encoder.is_connected:
-            raise RuntimeError(f"{name}: Steering Encoder is reportedly dead")
+            logger.error(
+                "%s steering encoder is not responding (CAN ID %s)",
+                name,
+                config.encoder_id,
+            )
 
-        logger.info(f"{name}: Ready with config {config}")
+        logger.info("%s: Initialized with config %s", name, config)
 
     def set_motor_options(self):
         """Configure motor options"""

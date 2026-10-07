@@ -61,11 +61,12 @@ class DrivetrainSubsystem(Subsystem):
         self.strafe_target = 0.0
         self.rotation_target = 0.0
         self.field_relative = True
+        self.align_only = False
         self.yaw_offset = Rotation2d()
-        self.forward_limiter = SlewRateLimiter(2)
-        self.strafe_limiter = SlewRateLimiter(2)
-        self.rotation_limiter = SlewRateLimiter(2)
-        logger.info("Swerve system ready")
+        self.forward_limiter = SlewRateLimiter(config.slew_rate)
+        self.strafe_limiter = SlewRateLimiter(config.slew_rate)
+        self.rotation_limiter = SlewRateLimiter(config.steering_slew_rate)
+        logger.info("Swerve system initialized")
 
     def stop(self) -> None:
         """Stop all output"""
@@ -73,6 +74,7 @@ class DrivetrainSubsystem(Subsystem):
         self.forward_target = 0.0
         self.strafe_target = 0.0
         self.rotation_target = 0.0
+        self.align_only = False
         self.forward_limiter.reset(0.0)
         self.strafe_limiter.reset(0.0)
         self.rotation_limiter.reset(0.0)
@@ -96,6 +98,7 @@ class DrivetrainSubsystem(Subsystem):
         self.forward_target = 0.0
         self.strafe_target = 0.0
         self.rotation_target = 0.0
+        self.align_only = False
         self.forward_limiter.reset(0.0)
         self.strafe_limiter.reset(0.0)
         self.rotation_limiter.reset(0.0)
@@ -107,10 +110,12 @@ class DrivetrainSubsystem(Subsystem):
         rotation: float = 0.0,
         *,
         field_relative: bool = True,
+        align_only: bool = False,
     ) -> None:
-        """Set normalized forward, strafe, and rotation demands."""
+        """Set normalized drive demands, optionally steering without moving."""
         self.locked = False
         self.field_relative = field_relative
+        self.align_only = align_only
         self.forward_target = self._apply_deadband(forward)
         self.strafe_target = self._apply_deadband(strafe)
         self.rotation_target = self._apply_deadband(rotation)
@@ -160,6 +165,8 @@ class DrivetrainSubsystem(Subsystem):
         states = self.kinematics.desaturateWheelSpeeds(
             states, self.config.max_speed_mps
         )
+        if self.align_only:
+            states = [SwerveModuleState(0.0, state.angle) for state in states]
 
         for module, state in zip(self.modules, states, strict=True):
             module.set_desired_state(

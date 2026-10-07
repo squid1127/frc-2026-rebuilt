@@ -23,7 +23,10 @@ class IMU:
         self.index = index
         self.device = AHRS(AHRS.NavXComType.kUSB1 if index == 1 else AHRS.NavXComType.kUSB2)
 
-        logger.info("Gyro ready")
+        if not self.is_connected():
+            logger.error("IMU is not connected (USB port %s)", index)
+
+        logger.info("Gyro initialized")
 
     def get_yaw(self) -> Rotation2d:
         return self.device.getRotation2d() * -1

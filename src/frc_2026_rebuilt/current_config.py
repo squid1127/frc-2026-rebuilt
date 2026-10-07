@@ -1,15 +1,24 @@
 """Hardcoded configuration for the current robot."""
 
-from .config import IntakeConfig, LauncherConfig, RobotConfig
-from .subsystems.swerve.config import SwerveConfig, SwerveModuleConfig
+from .config import RobotConfig
+from .subsystems.feeder import FeederConfig
+from .subsystems.launcher import LauncherConfig
+from .subsystems.swerve import SwerveConfig, SwerveModuleConfig
 
 
 class CurrentBotConfig:
     """The current robot's hardware IDs and tuning values."""
 
     CONFIG = RobotConfig(
-        intake=IntakeConfig(motor_id=14),
-        launcher=LauncherConfig(motor_id=17),
+        driver_controller=0,
+        operator_controller=1,
+        feeder=FeederConfig(
+            motor_id=14,
+        ),
+        launcher=LauncherConfig(
+            motor_id=17,
+            target_rev=50,
+        ),
         swerve=SwerveConfig(
             imu_usb=1,
             wheelbase_m=0.5715,
@@ -18,6 +27,8 @@ class CurrentBotConfig:
             speed_scale=0.3,
             steering_scale=0.15,
             max_steering_output=0.4,
+            slew_rate=4.0,
+            steering_slew_rate=3.0,
             fr=SwerveModuleConfig(
                 drive_motor_id=9,
                 steer_motor_id=8,

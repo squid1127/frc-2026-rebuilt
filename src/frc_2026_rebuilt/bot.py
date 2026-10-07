@@ -3,11 +3,11 @@
 import commands2
 from phoenix6.canbus import CANBus as PhCANBus
 
-from .commands import SwerveDriveCommand, SwerveEncoderDebugCommand
+from .commands import SwerveDriveCommand, SwerveTuneYaw
 from .config import RobotConfig
 from .current_config import CurrentBotConfig
 from .logger import get_logger
-from .subsystems.intake import IntakeSubsystem
+from .subsystems.feeder import FeederSubsystem
 from .subsystems.launcher import LauncherSubsystem
 from .subsystems.swerve import DrivetrainSubsystem
 
@@ -24,63 +24,105 @@ class RobotContainer(commands2.TimedCommandRobot):
 
         super().__init__()
         self.config = config
+        self.last_control_state: None | tuple[bool, bool, bool] = None
 
-        self.controller = commands2.button.CommandXboxController(0)
+        # Controllers
+        self.driver_controller = commands2.button.CommandXboxController(
+            config.driver_controller
+        )
+        self.operator_controller = commands2.button.CommandXboxController(
+            config.operator_controller
+        )
+        if not self.driver_controller.isConnected():
+            logger.error(
+                "Driver controller is not connected (USB port %s)",
+                config.driver_controller,
+            )
+        if not self.operator_controller.isConnected():
+            logger.error(
+                "Operator controller is not connected (USB port %s)",
+                config.operator_controller,
+            )
 
+        # Subsystems
         self.bus = PhCANBus()
-        self.launcher = LauncherSubsystem(config.launcher.motor_id, self.bus)
-        self.intake = IntakeSubsystem(config.intake.motor_id)
+        self.launcher = LauncherSubsystem(config.launcher, self.bus)
+        self.feeder = FeederSubsystem(config.feeder)
         self.swerve = DrivetrainSubsystem(config.swerve, bus=self.bus)
+
+        # Commands
         self.field_relative_drive = SwerveDriveCommand(
-            self.swerve, self.controller, field_relative=True
+            self.swerve, self.driver_controller, field_relative=True
         )
-        self.robot_relative_drive = SwerveDriveCommand(
-            self.swerve, self.controller, field_relative=False
-        )
-        self.encoder_debug_command = SwerveEncoderDebugCommand(self.swerve)
+        self.tune_yaw = SwerveTuneYaw(self.swerve, self.driver_controller, 0.05, 3)
 
         self.set_bindings()
 
+        logger.info("Bot initialization complete...")
+
     def set_bindings(self) -> None:
-        """Sets the bindings for each subsystem"""
+        """Sets the controller bindings for each subsystem"""
+
         self.swerve.setDefaultCommand(self.field_relative_drive)
-        self.controller.y().whileTrue(
-            commands2.cmd.run(
+        self.driver_controller.leftBumper().whileTrue(self.tune_yaw)
+        self.driver_controller.povUp().whileTrue(
+            commands2.cmd.startEnd(
                 lambda: self.swerve.set(
-                    self.CRAWL_SPEED,
+                    1,
                     field_relative=False,
+                    align_only=True,
                 ),
+                lambda: self.swerve.stop(),
                 self.swerve,
             )
         )
-        self.controller.leftTrigger().whileTrue(
+        self.driver_controller.leftTrigger().whileTrue(
             commands2.cmd.run(self.swerve.lock, self.swerve)
         )
-        self.controller.leftBumper().onTrue(
+
+        self.operator_controller.a().whileTrue(
             commands2.cmd.runOnce(
-                lambda: (
-                    self.swerve.reset_yaw(),
-                    logger.info("Reset swerve yaw"),
-                ),
-                self.swerve,
+                lambda: self.launcher.launch(),
+                self.launcher,
             )
         )
-
-        # self.controller.x().onTrue(self.encoder_debug_command)
-        self.controller.a().whileTrue(
-            commands2.cmd.startEnd(
-                lambda: self.launcher.set(0.525),
+        self.operator_controller.b().whileTrue(
+            commands2.cmd.runOnce(
                 lambda: self.launcher.stop(),
                 self.launcher,
             )
         )
-        self.controller.rightBumper().whileTrue(
-            commands2.cmd.startEnd(
-                lambda: self.intake.set(0.5), lambda: self.intake.stop(), self.intake
+        self.operator_controller.y().whileTrue(
+            commands2.cmd.runOnce(
+                lambda: self.feeder.set(0.5), self.feeder
             )
         )
-        self.controller.rightTrigger().whileTrue(
+        self.operator_controller.rightBumper().whileTrue(
             commands2.cmd.startEnd(
-                lambda: self.intake.set(-0.5), lambda: self.intake.stop(), self.intake
+                lambda: self.feeder.set(0.5), lambda: self.feeder.stop(), self.feeder
             )
         )
+        self.operator_controller.rightTrigger().whileTrue(
+            commands2.cmd.startEnd(
+                lambda: self.feeder.set(-0.5), lambda: self.feeder.stop(), self.feeder
+            )
+        )
+
+    def robotPeriodic(self) -> None:
+        """Detect state transitions"""
+        super().robotPeriodic()
+
+        state = self.getControlState()
+        if state != self.last_control_state:
+            flags = []
+            if state[0]:
+                flags.append("ENABLED")
+            if state[1]:
+                flags.append("AUTO")
+            if state[2]:
+                flags.append("TEST")
+            if not flags:
+                flags.append("NONE")
+
+            logger.info(f"State transition: {', '.join(flags)}")
+            self.last_control_state = state
