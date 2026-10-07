@@ -2,7 +2,8 @@
 name = "frc-2026-rebuilt"
 description = "Python rewrite of 9573's robot code"
 version = "0.1.0"
-dependencies = ["robotpy"]
+license = "MIT"
+dependencies = ["robotpy", "ruff"]
 
 #
 # Use this configuration file to control what RobotPy packages are installed
