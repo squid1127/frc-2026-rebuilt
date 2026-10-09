@@ -11,7 +11,7 @@ from phoenix6.hardware.cancoder import CANcoder
 from phoenix6.hardware.talon_fx import TalonFX
 from phoenix6.signals import InvertedValue, NeutralModeValue, SensorDirectionValue
 from wpimath.geometry import Rotation2d
-from wpimath.kinematics import SwerveModuleState
+from wpimath.kinematics import SwerveModulePosition, SwerveModuleState
 
 from ...logger import get_logger
 from .config import SwerveModuleConfig
@@ -32,14 +32,14 @@ class SwerveModule:
         self.set_motor_options()
         self.set_encoder_options()
 
-        if not wpilib.RobotBase.isSimulation() and self.drive_motor.is_connected and not self.drive_motor.isAlive():
+        if not wpilib.RobotBase.isSimulation() and (not self.drive_motor.is_connected or not self.drive_motor.isAlive()):
             logger.error(
                 "%s drive motor is not responding (CAN ID %s)",
                 name,
                 config.drive_motor_id,
             )
 
-        if not wpilib.RobotBase.isSimulation() and self.steer_motor.is_connected and not self.steer_motor.isAlive():
+        if not wpilib.RobotBase.isSimulation() and (not self.steer_motor.is_connected or not self.steer_motor.isAlive()):
             logger.error(
                 "%s steering motor is not responding (CAN ID %s)",
                 name,
@@ -102,6 +102,17 @@ class SwerveModule:
         position = self.encoder.get_absolute_position()
         position.refresh()
         return Rotation2d.fromRotations(position.value)
+
+    def get_position(
+        self, distance_per_motor_rotation_m: float
+    ) -> SwerveModulePosition:
+        """Read wheel travel and steering angle for odometry."""
+        drive_position = self.drive_motor.get_position()
+        drive_position.refresh()
+        return SwerveModulePosition(
+            drive_position.value * distance_per_motor_rotation_m,
+            self.get_angle(),
+        )
 
     def set_desired_state(
         self,

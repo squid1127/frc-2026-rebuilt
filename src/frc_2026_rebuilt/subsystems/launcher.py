@@ -11,6 +11,7 @@ from phoenix6.hardware.talon_fx import TalonFX
 from phoenix6.signals import InvertedValue, NeutralModeValue
 
 from ..logger import get_logger
+from ..tuning import NTField
 
 logger = get_logger(__name__)
 
@@ -22,14 +23,19 @@ class LauncherConfig:
     Attributes:
         motor_id: The CAN ID of the launcher motor
         target_rev: The target velocity (in RPM) for the launcher motor
+        target_threshold: The amount of deviation allowed from the target before the launcher is considered ready
     """
 
     motor_id: int
     target_rev: float
+    target_threshold: float
 
 
 class LauncherSubsystem(Subsystem):
     """Launcher subsystem"""
+
+    nt_target_rev = NTField[float]("Launcher Target Rev", 0, "number")
+    nt_ready = NTField[bool]("Launcher Ready", False, "boolean")
 
     def __init__(self, config: LauncherConfig, bus: CANBus):
         super().__init__()
@@ -38,10 +44,12 @@ class LauncherSubsystem(Subsystem):
         self.config = config
 
         self.motor = TalonFX(config.motor_id, bus)
-        self.target = config.target_rev
+        self.nt_target_rev = config.target_rev
         self.set_motor_options()
 
-        if not wpilib.RobotBase.isSimulation() and self.motor.is_connected and not self.motor.isAlive():
+        if (not wpilib.RobotBase.isSimulation()) and not (
+            self.motor.is_connected and self.motor.isAlive()
+        ):
             logger.error(
                 "Launcher motor is not responding (CAN ID %s)",
                 config.motor_id,
@@ -80,5 +88,11 @@ class LauncherSubsystem(Subsystem):
         self.motor.set_control(VelocityVoltage(velocity))
 
     def launch(self):
-        """Launch the motor at the given velocity"""
-        self.set(self.target)
+        """Spin the motor at the velocity defined in config"""
+        self.set(self.nt_target_rev)
+
+    def periodic(self) -> None:
+        super().periodic()
+
+        rev = abs(self.motor.get_velocity(refresh=True).value)
+        self.nt_ready = abs(rev - self.nt_target_rev) <= self.config.target_threshold

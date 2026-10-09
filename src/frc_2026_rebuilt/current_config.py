@@ -18,12 +18,15 @@ class CurrentBotConfig:
         launcher=LauncherConfig(
             motor_id=17,
             target_rev=50,
+            target_threshold=4,
         ),
         swerve=SwerveConfig(
             imu_usb=1,
             wheelbase_m=0.5715,
             trackwidth_m=0.5715,
             max_speed_mps=0.6,
+            wheel_diameter_in=4.0,
+            drive_gear_ratio=6.48,
             speed_scale=0.3,
             steering_scale=0.15,
             max_steering_output=0.4,

@@ -35,6 +35,8 @@ class SwerveConfig:
         wheelbase_m: The distance between the front and back wheels in meters (from the center of each wheel)
         trackwidth_m: The distance between the left and right wheels in meters (from the center of each wheel)
         max_speed_mps: The maximum speed of the robot in meters per second
+        wheel_diameter_in: The drive wheel diameter in inches
+        drive_gear_ratio: The number of motor rotations per wheel rotation
         speed_scale: The scale factor for the robot's speed
         slew_rate: The maximum rate of change for the robot's speed
         steering_scale: The scale factor for the steering modules
@@ -50,6 +52,8 @@ class SwerveConfig:
     wheelbase_m: float
     trackwidth_m: float
     max_speed_mps: float
+    wheel_diameter_in: float
+    drive_gear_ratio: float
     speed_scale: float
     slew_rate: float
     steering_scale: float
@@ -65,6 +69,10 @@ class SwerveConfig:
             raise ValueError("Swerve wheelbase and trackwidth must be positive")
         if self.max_speed_mps <= 0:
             raise ValueError("Swerve maximum speed must be positive")
+        if self.wheel_diameter_in <= 0 or self.drive_gear_ratio <= 0:
+            raise ValueError(
+                "Swerve wheel diameter and drive gear ratio must be positive"
+            )
         if not 0 <= self.speed_scale <= 1:
             raise ValueError("Swerve speed scale must be between zero and one")
         if self.steering_scale < 0:

@@ -28,7 +28,6 @@ class SwerveDriveCommand(Command):
         self.controller = controller
         self.field_relative = field_relative
         self.addRequirements(drivetrain)
-        self.speed = 1.0
 
     def execute(self) -> None:
         self.drivetrain.set(
