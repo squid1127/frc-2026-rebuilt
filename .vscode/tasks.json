@@ -38,5 +38,14 @@
             },
             "detail": "Check the code against ruff"
         },
+        {
+            "label": "Glass",
+            "type": "process",
+            "command": ["C:/Users/Public/wpilib/2026/tools/glass.exe"],
+            "detail": "Show the glass dashboard",
+            "icon": {
+                "id": "window"
+            }
+        }
     ]
 }
