@@ -13,7 +13,6 @@ from .subsystems.swerve import DrivetrainSubsystem
 
 logger = get_logger(__name__)
 
-
 class RobotContainer(commands2.TimedCommandRobot):
     """Main robot class"""
 
@@ -43,7 +42,7 @@ class RobotContainer(commands2.TimedCommandRobot):
                 "Operator controller is not connected (USB port %s)",
                 config.operator_controller,
             )
-
+            
         # Subsystems
         self.bus = PhCANBus()
         self.launcher = LauncherSubsystem(config.launcher, self.bus)
@@ -54,7 +53,7 @@ class RobotContainer(commands2.TimedCommandRobot):
         self.field_relative_drive = SwerveDriveCommand(
             self.swerve, self.driver_controller, field_relative=True
         )
-        self.tune_yaw = SwerveTuneYaw(self.swerve, self.driver_controller, 0.05, 3)
+        self.tune_yaw = SwerveTuneYaw(self.swerve, self.driver_controller, 0.05, 10, 1.5)
 
         self.set_bindings()
 
@@ -63,6 +62,7 @@ class RobotContainer(commands2.TimedCommandRobot):
     def set_bindings(self) -> None:
         """Sets the controller bindings for each subsystem"""
 
+        # Driver controller
         self.swerve.setDefaultCommand(self.field_relative_drive)
         self.driver_controller.leftBumper().whileTrue(self.tune_yaw)
         self.driver_controller.povUp().whileTrue(
@@ -80,6 +80,7 @@ class RobotContainer(commands2.TimedCommandRobot):
             commands2.cmd.run(self.swerve.lock, self.swerve)
         )
 
+        # Operator controller
         self.operator_controller.a().whileTrue(
             commands2.cmd.runOnce(
                 lambda: self.launcher.launch(),
