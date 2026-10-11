@@ -22,8 +22,8 @@ class LauncherConfig:
 
     Attributes:
         motor_id: The CAN ID of the launcher motor
-        target_rev: The target velocity (in RPM) for the launcher motor
-        target_threshold: The amount of deviation allowed from the target before the launcher is considered ready
+        target_rev: The target velocity (in RPS) for the launcher motor
+        target_threshold: The allowed deviation (in RPS) in velocity for the launcher to be considered ready
     """
 
     motor_id: int
