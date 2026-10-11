@@ -65,8 +65,6 @@ model {
                 interface 'USB'
                 usb_port 'TBD'
                 wpilib_index '0'
-                manufacturer 'TBD'
-                model 'TBD'
             }
         }
 
@@ -76,8 +74,6 @@ model {
                 interface 'USB'
                 usb_port 'TBD'
                 wpilib_index '1'
-                manufacturer 'TBD'
-                model 'TBD'
             }
         }
     }
@@ -90,7 +86,6 @@ model {
             metadata {
                 entrypoint 'robot.py'
                 runtime 'RobotPy 2026'
-                physical_location 'RoboRIO; confirm target and mounting'
             }
 
             component container 'RobotContainer' {
@@ -158,9 +153,6 @@ model {
             device roboRio 'RoboRIO' {
                 metadata {
                     manufacturer 'NI'
-                    model 'TBD'
-                    mounting 'TBD'
-                    wiring 'TBD'
                 }
             }
 
@@ -168,18 +160,12 @@ model {
                 metadata {
                     interface 'USB'
                     port '1'
-                    manufacturer 'TBD'
-                    model 'TBD'
-                    mounting 'TBD'
-                    wiring 'TBD'
                 }
             }
 
             bus canBus 'Default roboRIO CAN bus' {
                 metadata {
                     protocol 'CAN'
-                    physical_topology 'TBD'
-                    wiring 'TBD'
                 }
             }
 
@@ -187,10 +173,6 @@ model {
                 metadata {
                     controller 'CTRE TalonFX'
                     can_id '17'
-                    manufacturer 'TBD'
-                    motor_model 'TBD'
-                    mounting 'TBD'
-                    wiring 'TBD'
                 }
             }
 
@@ -198,10 +180,6 @@ model {
                 metadata {
                     controller 'REV SparkMax'
                     can_id '14'
-                    manufacturer 'TBD'
-                    motor_model 'TBD'
-                    mounting 'TBD'
-                    wiring 'TBD'
                 }
             }
 
@@ -209,39 +187,25 @@ model {
                 description 'Reusable physical module template. Record position-specific details for each configured instance.'
                 metadata {
                     instance_count '4'
-                    position 'TBD per instance'
-                    mounting 'TBD per instance'
-                    wiring 'TBD per instance'
                 }
 
                 device driveMotor 'Drive motor' {
                     metadata {
                         controller 'CTRE TalonFX'
                         can_id 'TBD per instance'
-                        manufacturer 'TBD'
-                        motor_model 'TBD'
-                        mounting 'TBD'
-                        wiring 'TBD'
                     }
                 }
                 device steeringMotor 'Steering motor' {
                     metadata {
                         controller 'CTRE TalonFX'
                         can_id 'TBD per instance'
-                        manufacturer 'TBD'
-                        motor_model 'TBD'
-                        mounting 'TBD'
-                        wiring 'TBD'
                     }
                 }
                 device absoluteEncoder 'Absolute encoder' {
                     metadata {
                         controller 'CTRE CANcoder'
                         can_id 'TBD per instance'
-                        manufacturer 'TBD'
-                        model 'TBD'
-                        mounting 'TBD'
-                        wiring 'TBD'
+
                     }
                 }
             }
