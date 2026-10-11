@@ -1,0 +1,297 @@
+specification {
+    element actor {
+        style {
+            color indigo
+        }
+    }
+    element system
+    element component
+    element controller
+    element device {
+        style {
+            color amber
+        }
+    }
+    element bus {
+        style {
+            color red
+        }
+    }
+
+    relationship input {
+        color indigo
+    }
+    relationship commands {
+        color green
+    }
+    relationship controls
+    relationship reads {
+        color amber
+    }
+    relationship configures {
+        color secondary
+    }
+    relationship hosts {
+        color primary
+    }
+    relationship transports {
+        color red
+    }
+    relationship publishes {
+        color indigo
+    }
+}
+
+model {
+    driver = actor 'Driver'
+    operator = actor 'Operator'
+    driverStationLaptop = system 'FRC Driver Station laptop' {
+        description 'Laptop running the FRC Driver Station application and a user-selected NetworkTables client.'
+
+        component driverStationApp 'FRC Driver Station' {
+            description 'Receives driver and operator controller input and communicates with the roboRIO over the robot network.'
+        }
+
+        component ntClient 'NetworkTables client (user choice)' {
+            description 'User-selected NT client for viewing and interacting with robot telemetry.'
+            metadata {
+                client 'TBD (AdvantageScope, Shuffleboard, or other)'
+            }
+        }
+
+        controller driverController 'Driver controller' {
+            description 'Standard Xbox controller responsible for operating the drivetrain'
+            metadata {
+                interface 'USB'
+                usb_port 'TBD'
+                wpilib_index '0'
+                manufacturer 'TBD'
+                model 'TBD'
+            }
+        }
+
+        controller operatorController 'Operator controller' {
+            description 'Standard Xbox controller responsible to operating launcher subsystems'
+            metadata {
+                interface 'USB'
+                usb_port 'TBD'
+                wpilib_index '1'
+                manufacturer 'TBD'
+                model 'TBD'
+            }
+        }
+    }
+
+    robot = system 'FRC 2026 Robot' {
+        description 'RobotPy command-based application and its connected robot hardware.'
+
+        component software 'RobotPy application' {
+            description 'Python robot code using RobotPy commands2 and WPILib.'
+            metadata {
+                entrypoint 'robot.py'
+                runtime 'RobotPy 2026'
+                physical_location 'RoboRIO; confirm target and mounting'
+            }
+
+            component container 'RobotContainer' {
+                description 'Constructs controllers and subsystems, then installs controller bindings.'
+            }
+
+            component configuration 'Robot configuration' {
+                description 'RobotConfig, subsystem config types, and CurrentBotConfig hardware IDs and tuning.'
+            }
+
+            component driverCommands 'Driver commands' {
+                component fieldDrive 'Field-relative swerve drive' {
+                    description 'Reads driver axes and sends chassis targets to the drivetrain.'
+                }
+                component yawTune 'Swerve yaw tuning' {
+                    description 'Applies yaw adjustment while the driver holds the tuning binding.'
+                }
+                component align 'Steering alignment' {
+                    description 'Uses POV-up to steer modules without commanding wheel speed.'
+                }
+                component lock 'Swerve lock' {
+                    description 'Uses the driver trigger to hold the wheels in an X pattern.'
+                }
+            }
+
+            component operatorCommands 'Operator commands' {
+                component launchCommand 'Launch / stop' {
+                    description 'Starts or stops the launcher on operator A/B.'
+                }
+                component feederCommand 'Feed / reverse' {
+                    description 'Runs or stops the feeder using operator Y, right bumper, and right trigger.'
+                }
+            }
+
+            component drivetrain 'Drivetrain subsystem' {
+                description 'Swerve kinematics, slew limiting, field-relative conversion, and odometry.'
+                component imuReader 'IMU interface' {
+                    description 'Reads yaw from the navX AHRS and supplies it to field-relative drive and odometry.'
+                }
+                component moduleController 'SwerveModule controller' {
+                    description 'Reusable control for one module; the drivetrain coordinates four configured instances.'
+                }
+            }
+
+            component launcher 'Launcher subsystem' {
+                description 'Velocity-controlled TalonFX launcher; publishes ready state.'
+            }
+
+            component feeder 'Feeder subsystem' {
+                description 'Open-loop REV SparkMax feeder motor control.'
+            }
+
+            component telemetry 'NetworkTables telemetry' {
+                description 'Publishes drivetrain pose/module state and launcher readiness.'
+            }
+
+            component logging 'Logging' {
+                description 'Reports robot state transitions and device initialization/connection issues.'
+            }
+        }
+
+        component hardware 'Robot hardware' {
+            description 'Physical component inventory. Add exact part, mounting, and wiring details as they are confirmed.'
+
+            device roboRio 'RoboRIO' {
+                metadata {
+                    manufacturer 'NI'
+                    model 'TBD'
+                    mounting 'TBD'
+                    wiring 'TBD'
+                }
+            }
+
+            device imu 'navX AHRS' {
+                metadata {
+                    interface 'USB'
+                    port '1'
+                    manufacturer 'TBD'
+                    model 'TBD'
+                    mounting 'TBD'
+                    wiring 'TBD'
+                }
+            }
+
+            bus canBus 'Default roboRIO CAN bus' {
+                metadata {
+                    protocol 'CAN'
+                    physical_topology 'TBD'
+                    wiring 'TBD'
+                }
+            }
+
+            device launcherMotor 'Launcher motor' {
+                metadata {
+                    controller 'CTRE TalonFX'
+                    can_id '17'
+                    manufacturer 'TBD'
+                    motor_model 'TBD'
+                    mounting 'TBD'
+                    wiring 'TBD'
+                }
+            }
+
+            device feederMotor 'Feeder motor' {
+                metadata {
+                    controller 'REV SparkMax'
+                    can_id '14'
+                    manufacturer 'TBD'
+                    motor_model 'TBD'
+                    mounting 'TBD'
+                    wiring 'TBD'
+                }
+            }
+
+            component swerveModule 'Swerve module' {
+                description 'Reusable physical module template. Record position-specific details for each configured instance.'
+                metadata {
+                    instance_count '4'
+                    position 'TBD per instance'
+                    mounting 'TBD per instance'
+                    wiring 'TBD per instance'
+                }
+
+                device driveMotor 'Drive motor' {
+                    metadata {
+                        controller 'CTRE TalonFX'
+                        can_id 'TBD per instance'
+                        manufacturer 'TBD'
+                        motor_model 'TBD'
+                        mounting 'TBD'
+                        wiring 'TBD'
+                    }
+                }
+                device steeringMotor 'Steering motor' {
+                    metadata {
+                        controller 'CTRE TalonFX'
+                        can_id 'TBD per instance'
+                        manufacturer 'TBD'
+                        motor_model 'TBD'
+                        mounting 'TBD'
+                        wiring 'TBD'
+                    }
+                }
+                device absoluteEncoder 'Absolute encoder' {
+                    metadata {
+                        controller 'CTRE CANcoder'
+                        can_id 'TBD per instance'
+                        manufacturer 'TBD'
+                        model 'TBD'
+                        mounting 'TBD'
+                        wiring 'TBD'
+                    }
+                }
+            }
+        }
+    }
+
+    driver -> driverStationLaptop.driverController 'operates'
+    operator -> driverStationLaptop.operatorController 'operates'
+    driverStationLaptop.driverController -[transports]-> driverStationLaptop.driverStationApp 'USB'
+    driverStationLaptop.operatorController -[transports]-> driverStationLaptop.driverStationApp 'USB'
+    driverStationLaptop.driverStationApp -[input]-> robot.software.driverCommands 'driver controls over robot network'
+    driverStationLaptop.driverStationApp -[input]-> robot.software.operatorCommands 'operator controls over robot network'
+
+    robot.software.container -[configures]-> robot.software.configuration 'constructs configured subsystems'
+    robot.software.configuration -[configures]-> robot.software.drivetrain 'swerve tuning and module IDs'
+    robot.software.configuration -[configures]-> robot.software.launcher 'launcher ID and target velocity'
+    robot.software.configuration -[configures]-> robot.software.feeder 'feeder motor ID'
+
+    robot.software.driverCommands.fieldDrive -[commands]-> robot.software.drivetrain 'chassis motion'
+    robot.software.driverCommands.yawTune -[commands]-> robot.software.drivetrain 'yaw offset'
+    robot.software.driverCommands.align -[commands]-> robot.software.drivetrain 'steering alignment'
+    robot.software.driverCommands.lock -[commands]-> robot.software.drivetrain 'X-lock'
+    robot.software.operatorCommands.launchCommand -[commands]-> robot.software.launcher 'launch or stop'
+    robot.software.operatorCommands.feederCommand -[commands]-> robot.software.feeder 'feed or reverse'
+
+    robot.software.drivetrain.imuReader -[reads]-> robot.hardware.imu 'yaw and orientation'
+    robot.software.drivetrain.moduleController -[commands]-> robot.hardware.swerveModule 'desired wheel speed and angle'
+    robot.software.drivetrain.moduleController -[reads]-> robot.hardware.swerveModule 'wheel position and steering angle'
+    robot.software.launcher -[commands]-> robot.hardware.launcherMotor 'velocity control'
+    robot.software.launcher -[reads]-> robot.hardware.launcherMotor 'measured velocity'
+    robot.software.feeder -[commands]-> robot.hardware.feederMotor 'open-loop output'
+
+    robot.hardware.roboRio -[hosts]-> robot.software 'runs robot code'
+    robot.hardware.imu -[transports]-> robot.software.drivetrain 'USB'
+    robot.hardware.launcherMotor -[transports]-> robot.hardware.canBus 'CAN'
+    robot.hardware.feederMotor -[transports]-> robot.hardware.canBus 'CAN'
+    robot.hardware.swerveModule.driveMotor -[transports]-> robot.hardware.canBus 'CAN'
+    robot.hardware.swerveModule.steeringMotor -[transports]-> robot.hardware.canBus 'CAN'
+    robot.hardware.swerveModule.absoluteEncoder -[transports]-> robot.hardware.canBus 'CAN'
+
+    robot.software.drivetrain -[publishes]-> robot.software.telemetry 'pose and module state'
+    robot.software.launcher -[publishes]-> robot.software.telemetry 'ready state'
+    robot.software.telemetry -> driverStationLaptop.ntClient 'NetworkTables over robot network'
+}
+
+views {
+    view robot-topology {
+        title 'Robot topology'
+        include *
+        include robot.**
+        include driverStationLaptop.**
+    }
+}
