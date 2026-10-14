@@ -14,5 +14,6 @@
         "venv",
         "wpilib",
         "wpimath"
-    ]
+    ],
+    "python-envs.defaultEnvManager": "ms-python.python:venv"
 }
