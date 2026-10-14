@@ -38,11 +38,11 @@ class SwerveTuneYaw(Command):
 
     def execute(self) -> None:
 
-        l_value = self.controller.getLeftX()
+        l_value = -self.controller.getLeftX()
         if abs(l_value) >= self.deadband:
             self.drivetrain.offset_yaw(l_value * self.l_sensitivity)
 
-        r_value = self.controller.getRightX()
+        r_value = -self.controller.getRightX()
         if abs(r_value) >= self.deadband:
             self.drivetrain.offset_yaw(r_value * self.r_sensitivity)
 

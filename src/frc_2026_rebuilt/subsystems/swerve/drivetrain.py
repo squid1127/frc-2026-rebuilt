@@ -2,7 +2,6 @@
 
 import math
 
-import ntcore
 from commands2 import Subsystem
 from phoenix6.canbus import CANBus
 from wpimath.filter import SlewRateLimiter
@@ -14,9 +13,10 @@ from wpimath.kinematics import (
     SwerveModulePosition,
     SwerveModuleState,
 )
+from wpimath.controller import PIDController
 
 from ...logger import get_logger
-from ...tuning import NTField
+from ...network import NTFloat, NTPose2d, NTSwerveModuleStateArray
 from .config import SwerveConfig
 from .imu import IMU
 from .swerve_module import SwerveModule
@@ -26,13 +26,6 @@ logger = get_logger(__name__)
 
 class DrivetrainSubsystem(Subsystem):
     """drivetrain subsystem"""
-
-    nt_speed_scale = NTField[float]("Swerve Speed", 0.0, "number")
-    nt_speed_mps = NTField[float]("Swerve Speed Limit", 0.0, "number")
-    nt_yaw = NTField[float]("Swerve Yaw", 0.0, "number")
-    nt_f_vel = NTField[float]("Forward Velocity", 0.0, "number")
-    nt_s_vel = NTField[float]("Strafe Velocity", 0.0, "number")
-
 
     def __init__(self, config: SwerveConfig, bus: CANBus):
         super().__init__()
@@ -68,8 +61,7 @@ class DrivetrainSubsystem(Subsystem):
             Translation2d(-half_wheelbase, -half_trackwidth),
         )
         self.distance_per_motor_rotation_m = (
-            math.pi * config.wheel_diameter_in * 0.0254
-            / config.drive_gear_ratio
+            math.pi * config.wheel_diameter_in * 0.0254 / config.drive_gear_ratio
         )
         self.yaw_offset = Rotation2d()
         self.odometry = SwerveDrive4Odometry(
@@ -86,21 +78,18 @@ class DrivetrainSubsystem(Subsystem):
         self.forward_limiter = SlewRateLimiter(config.slew_rate)
         self.strafe_limiter = SlewRateLimiter(config.slew_rate)
         self.rotation_limiter = SlewRateLimiter(config.steering_slew_rate)
-        self.nt_speed_scale = config.speed_scale
-        self.nt_speed_mps = config.max_speed_mps
+        
+        self.yaw_pid = PIDController
 
-        self.nt_pose_publisher = (
-            ntcore.NetworkTableInstance.getDefault()
-            .getStructTopic("Drivetrain/Pose", Pose2d)
-            .publish()
-        )
-        self.nt_module_states_publisher = (
-            ntcore.NetworkTableInstance.getDefault()
-            .getStructArrayTopic(
-                "Drivetrain/ModuleStates", SwerveModuleState
-            )
-            .publish()
-        )
+        self.nt_speed_scale = NTFloat("Drivetrain/Speed Multiplier", config.speed_scale)
+        self.nt_max_speed_mps = NTFloat("Drivetrain/Speed Cap", config.max_speed_mps)
+        self.nt_yaw = NTFloat("Drivetrain/Yaw", 0)
+        self.nt_offset = NTFloat("Drivetrain/Yaw Offset", 0)
+        self.nt_f_out = NTFloat("Drivetrain/Output", 0)
+        self.nt_s_out = NTFloat("Drivetrain/Strafe Output", 0)
+        self.nt_y_out = NTFloat("Drivetrain/Yaw Output", 0)
+        self.nt_pose = NTPose2d("Drivetrain/Pose", Pose2d())
+        self.nt_module_state = NTSwerveModuleStateArray("Drivetrain/Module State", [])
 
         logger.info("Swerve system initialized")
 
@@ -128,16 +117,18 @@ class DrivetrainSubsystem(Subsystem):
             self._get_module_positions(),
             Pose2d(current_pose.translation(), yaw),
         )
+        logger.info("Reset yaw")
 
     def set_speed_scale(self, speed: float):
         """Change the speed multiplier of the drivetrain"""
         if not 0 <= speed <= 1:
             raise ValueError("Speed must be between 0 and 1 inclusive")
-        self.nt_speed_scale = speed
+        self.nt_speed_scale.set(speed)
 
     def offset_yaw(self, degrees: float) -> None:
         """Adjust the yaw used for field-relative driving."""
         self.yaw_offset += Rotation2d.fromDegrees(degrees)
+        self.nt_offset.set(self.yaw_offset.radians())
 
     def lock(self) -> None:
         """Hold the wheels in an X pattern to resist being pushed."""
@@ -170,19 +161,29 @@ class DrivetrainSubsystem(Subsystem):
         self.strafe_target = self._apply_deadband(strafe)
         self.rotation_target = self._apply_deadband(rotation)
 
+    def reset_pose(self):
+        """Reset the robot's pose odometry"""
+        self.odometry = SwerveDrive4Odometry(
+            self.kinematics,
+            self.imu.get_yaw() + self.yaw_offset,
+            self._get_module_positions(),
+            initialPose=Pose2d(Translation2d(0, 3), Rotation2d(0)),
+        )
+        logger.info("Reset pose")
+
     def periodic(self) -> None:
         """Tick system"""
         yaw = self.imu.get_yaw() + self.yaw_offset
         pose = self.odometry.update(yaw, self._get_module_positions())
-        self.nt_pose_publisher.set(pose)
-        self.nt_yaw = yaw.radians()
+        self.nt_pose.set(pose)
+        self.nt_yaw.set(yaw.radians())
 
         if self.locked:
             self._publish_module_states(self.lock_states)
             for module, state in zip(self.modules, self.lock_states, strict=True):
                 module.set_desired_state(
                     state,
-                    self.nt_speed_mps,
+                    self.max_speed_mps,
                     self.config.steering_scale,
                     self.config.max_steering_output,
                 )
@@ -191,11 +192,12 @@ class DrivetrainSubsystem(Subsystem):
         forward = self.forward_limiter.calculate(self.forward_target)
         strafe = self.strafe_limiter.calculate(self.strafe_target)
         rotation = self.rotation_limiter.calculate(self.rotation_target)
-        forward *= self.nt_speed_scale
-        strafe *= self.nt_speed_scale
-        rotation *= self.nt_speed_scale
-        self.nt_f_vel = forward
-        self.nt_s_vel = strafe
+        forward *= self.nt_speed_scale.value
+        strafe *= self.nt_speed_scale.value
+        rotation *= self.nt_speed_scale.value
+        self.nt_f_out.value = forward
+        self.nt_s_out.value = strafe
+        self.nt_y_out.value = rotation
 
         if max(abs(forward), abs(strafe), abs(rotation)) < 0.01:
             self._publish_module_states(
@@ -208,27 +210,25 @@ class DrivetrainSubsystem(Subsystem):
                 module.stop()
             return
 
-        max_angular_speed = self.nt_speed_mps / math.hypot(
+        max_angular_speed = self.max_speed_mps / math.hypot(
             self.config.wheelbase_m / 2,
             self.config.trackwidth_m / 2,
         )
         if self.field_relative:
             chassis_speeds = ChassisSpeeds.fromFieldRelativeSpeeds(
-                forward * self.nt_speed_mps,
-                strafe * self.nt_speed_mps,
+                forward * self.max_speed_mps,
+                strafe * self.max_speed_mps,
                 rotation * max_angular_speed,
                 self.imu.get_yaw() + self.yaw_offset,
             )
         else:
             chassis_speeds = ChassisSpeeds(
-                forward * self.nt_speed_mps,
-                strafe * self.nt_speed_mps,
+                forward * self.max_speed_mps,
+                strafe * self.max_speed_mps,
                 rotation * max_angular_speed,
             )
         states = self.kinematics.toSwerveModuleStates(chassis_speeds)
-        states = self.kinematics.desaturateWheelSpeeds(
-            states, self.nt_speed_mps
-        )
+        states = self.kinematics.desaturateWheelSpeeds(states, self.max_speed_mps)
         if self.align_only:
             states = [SwerveModuleState(0.0, state.angle) for state in states]
 
@@ -236,7 +236,7 @@ class DrivetrainSubsystem(Subsystem):
         for module, state in zip(self.modules, states, strict=True):
             module.set_desired_state(
                 state,
-                self.nt_speed_mps,
+                self.max_speed_mps,
                 self.config.steering_scale,
                 self.config.max_steering_output,
             )
@@ -244,7 +244,7 @@ class DrivetrainSubsystem(Subsystem):
     def _publish_module_states(
         self, states: tuple[SwerveModuleState, ...] | list[SwerveModuleState]
     ) -> None:
-        self.nt_module_states_publisher.set(list(states))
+        self.nt_module_state.set(list(states))
 
     def _get_module_positions(
         self,
@@ -261,6 +261,10 @@ class DrivetrainSubsystem(Subsystem):
             self.back_left.get_position(distance_per_motor_rotation_m),
             self.back_right.get_position(distance_per_motor_rotation_m),
         )
+
+    @property
+    def max_speed_mps(self) -> float:
+        return self.nt_max_speed_mps.value
 
     @staticmethod
     def _apply_deadband(value: float, deadband: float = 0.05) -> float:
