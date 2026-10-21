@@ -4,6 +4,8 @@ import math
 
 from commands2 import Subsystem
 from phoenix6.canbus import CANBus
+from wpilib import Timer
+from wpimath.controller import PIDController
 from wpimath.filter import SlewRateLimiter
 from wpimath.geometry import Pose2d, Rotation2d, Translation2d
 from wpimath.kinematics import (
@@ -13,15 +15,17 @@ from wpimath.kinematics import (
     SwerveModulePosition,
     SwerveModuleState,
 )
-from wpimath.controller import PIDController
 
 from ...logger import get_logger
-from ...network import NTFloat, NTPose2d, NTSwerveModuleStateArray
+from ...network import NTBool, NTFloat, NTPose2d, NTSwerveModuleStateArray
 from .config import SwerveConfig
 from .imu import IMU
 from .swerve_module import SwerveModule
 
 logger = get_logger(__name__)
+
+_YAW_RATE_SETTLED_THRESHOLD_RAD_PER_SEC = math.radians(5)
+_ROTATION_SETTLED_THRESHOLD = 0.02
 
 
 class DrivetrainSubsystem(Subsystem):
@@ -66,23 +70,28 @@ class DrivetrainSubsystem(Subsystem):
         self.yaw_offset = Rotation2d()
         self.odometry = SwerveDrive4Odometry(
             self.kinematics,
-            self.imu.get_yaw() + self.yaw_offset,
+            self.yaw,
             self._get_module_positions(),
         )
 
         self.forward_target = 0.0
         self.strafe_target = 0.0
         self.rotation_target = 0.0
+        self.yaw_target: Rotation2d | None = None
+        self._coasting_after_manual_rotation = False
+        self._last_periodic_timestamp = Timer.getFPGATimestamp()
         self.field_relative = True
         self.align_only = False
         self.forward_limiter = SlewRateLimiter(config.slew_rate)
         self.strafe_limiter = SlewRateLimiter(config.slew_rate)
         self.rotation_limiter = SlewRateLimiter(config.steering_slew_rate)
-        
-        self.yaw_pid = PIDController
+
+        self.yaw_pid = PIDController(config.yaw_kp, 0, 0)
+        self.yaw_pid.enableContinuousInput(-math.pi, math.pi)
 
         self.nt_speed_scale = NTFloat("Drivetrain/Speed Multiplier", config.speed_scale)
         self.nt_max_speed_mps = NTFloat("Drivetrain/Speed Cap", config.max_speed_mps)
+        self.nt_slew_rate = NTFloat("Drivetrain/Slew Rate", config.slew_rate)
         self.nt_yaw = NTFloat("Drivetrain/Yaw", 0)
         self.nt_offset = NTFloat("Drivetrain/Yaw Offset", 0)
         self.nt_f_out = NTFloat("Drivetrain/Output", 0)
@@ -90,6 +99,7 @@ class DrivetrainSubsystem(Subsystem):
         self.nt_y_out = NTFloat("Drivetrain/Yaw Output", 0)
         self.nt_pose = NTPose2d("Drivetrain/Pose", Pose2d())
         self.nt_module_state = NTSwerveModuleStateArray("Drivetrain/Module State", [])
+        self.nt_pid_toggle = NTBool("Drivetrain/Yaw PID", True)
 
         logger.info("Swerve system initialized")
 
@@ -105,12 +115,14 @@ class DrivetrainSubsystem(Subsystem):
         self.rotation_limiter.reset(0.0)
         for module in self.modules:
             module.stop()
+        self.yaw_target = None
 
     def reset_yaw(self) -> None:
         """Reset the yaw measurement of the bot (including offset)"""
         self.imu.reset_yaw()
         self.yaw_offset = Rotation2d()
         yaw = self.imu.get_yaw()
+        self.yaw_pid.reset()
         current_pose = self.odometry.getPose()
         self.odometry.resetPosition(
             yaw,
@@ -125,10 +137,25 @@ class DrivetrainSubsystem(Subsystem):
             raise ValueError("Speed must be between 0 and 1 inclusive")
         self.nt_speed_scale.set(speed)
 
-    def offset_yaw(self, degrees: float) -> None:
-        """Adjust the yaw used for field-relative driving."""
-        self.yaw_offset += Rotation2d.fromDegrees(degrees)
+    def offset_yaw(self, degrees: float | Rotation2d) -> None:
+        """Adjust the yaw used for field-relative driving by degrees or a Rotation2d."""
+
+        if not isinstance(degrees, Rotation2d):
+            degrees = Rotation2d.fromDegrees(degrees)
+        self.yaw_offset += degrees
         self.nt_offset.set(self.yaw_offset.radians())
+        self.yaw_target = None
+
+    def rotate_to(self, degrees: float | Rotation2d) -> None:
+        """Set the PID target yaw to degrees or a Rotation2d"""
+        if not isinstance(degrees, Rotation2d):
+            degrees = Rotation2d.fromDegrees(degrees)
+        self.yaw_target = degrees
+        self._coasting_after_manual_rotation = False
+
+    def stop_rotating(self) -> None:
+        """Clear the yaw PID"""
+        self.yaw_target = None
 
     def lock(self) -> None:
         """Hold the wheels in an X pattern to resist being pushed."""
@@ -152,20 +179,35 @@ class DrivetrainSubsystem(Subsystem):
         *,
         field_relative: bool = True,
         align_only: bool = False,
+        controller_deadband: float | None = None,
     ) -> None:
-        """Set normalized drive demands, optionally steering without moving."""
+        """Set drive demands, optionally steering without moving or overriding deadband."""
+        if controller_deadband is None:
+            controller_deadband = self.config.controller_deadband
+        elif not 0 <= controller_deadband < 1:
+            raise ValueError("Controller deadband must be between zero and one")
+
         self.locked = False
         self.field_relative = field_relative
         self.align_only = align_only
-        self.forward_target = self._apply_deadband(forward)
-        self.strafe_target = self._apply_deadband(strafe)
-        self.rotation_target = self._apply_deadband(rotation)
+        self.forward_target = self._apply_deadband(
+            forward,
+            controller_deadband,
+        )
+        self.strafe_target = self._apply_deadband(
+            strafe,
+            controller_deadband,
+        )
+        self.rotation_target = self._apply_deadband(
+            rotation,
+            controller_deadband,
+        )
 
     def reset_pose(self):
         """Reset the robot's pose odometry"""
         self.odometry = SwerveDrive4Odometry(
             self.kinematics,
-            self.imu.get_yaw() + self.yaw_offset,
+            self.yaw,
             self._get_module_positions(),
             initialPose=Pose2d(Translation2d(0, 3), Rotation2d(0)),
         )
@@ -173,7 +215,11 @@ class DrivetrainSubsystem(Subsystem):
 
     def periodic(self) -> None:
         """Tick system"""
-        yaw = self.imu.get_yaw() + self.yaw_offset
+        now = Timer.getFPGATimestamp()
+        dt = max(0.0, now - self._last_periodic_timestamp)
+        self._last_periodic_timestamp = now
+
+        yaw = self.yaw
         pose = self.odometry.update(yaw, self._get_module_positions())
         self.nt_pose.set(pose)
         self.nt_yaw.set(yaw.radians())
@@ -189,17 +235,53 @@ class DrivetrainSubsystem(Subsystem):
                 )
             return
 
+        yaw_rate_rad_per_sec = math.radians(self.imu.get_yaw_rate_dps())
+        if abs(self.rotation_target) > 0:
+            self.yaw_target = yaw
+            self.yaw_pid.reset()
+            self._coasting_after_manual_rotation = True
+            rotation_request = self.rotation_target
+        elif self._coasting_after_manual_rotation:
+            if self.yaw_target is None:
+                self.yaw_target = yaw
+            self.yaw_target = Rotation2d(
+                self.yaw_target.radians() + yaw_rate_rad_per_sec * dt
+            )
+            rotation_request = 0.0
+        elif self.nt_pid_toggle.value and self.yaw_target is not None:
+            rotation_request = self.yaw_pid.calculate(
+                yaw.radians(), self.yaw_target.radians()
+            )
+            rotation_request = max(-1.0, min(1.0, rotation_request))
+        else:
+            self.yaw_target = yaw
+            rotation_request = 0.0
+
+        slew_rate = self.nt_slew_rate.value
+        self.forward_limiter.setLimit(slew_rate)
+        self.strafe_limiter.setLimit(slew_rate)
         forward = self.forward_limiter.calculate(self.forward_target)
         strafe = self.strafe_limiter.calculate(self.strafe_target)
-        rotation = self.rotation_limiter.calculate(self.rotation_target)
+        rotation = self.rotation_limiter.calculate(rotation_request)
+        limited_rotation = rotation
         forward *= self.nt_speed_scale.value
         strafe *= self.nt_speed_scale.value
         rotation *= self.nt_speed_scale.value
+
+        if (
+            self._coasting_after_manual_rotation
+            and abs(yaw_rate_rad_per_sec) <= _YAW_RATE_SETTLED_THRESHOLD_RAD_PER_SEC
+            and abs(limited_rotation) <= _ROTATION_SETTLED_THRESHOLD
+        ):
+            self.yaw_target = yaw
+            self.yaw_pid.reset()
+            self._coasting_after_manual_rotation = False
+
         self.nt_f_out.value = forward
         self.nt_s_out.value = strafe
         self.nt_y_out.value = rotation
 
-        if max(abs(forward), abs(strafe), abs(rotation)) < 0.01:
+        if max(abs(forward), abs(strafe), abs(rotation)) < self.config.output_deadband:
             self._publish_module_states(
                 tuple(
                     SwerveModuleState(0.0, module.get_angle())
@@ -219,7 +301,7 @@ class DrivetrainSubsystem(Subsystem):
                 forward * self.max_speed_mps,
                 strafe * self.max_speed_mps,
                 rotation * max_angular_speed,
-                self.imu.get_yaw() + self.yaw_offset,
+                self.yaw,
             )
         else:
             chassis_speeds = ChassisSpeeds(
@@ -266,8 +348,12 @@ class DrivetrainSubsystem(Subsystem):
     def max_speed_mps(self) -> float:
         return self.nt_max_speed_mps.value
 
+    @property
+    def yaw(self) -> Rotation2d:
+        return self.imu.get_yaw() + self.yaw_offset
+
     @staticmethod
-    def _apply_deadband(value: float, deadband: float = 0.05) -> float:
+    def _apply_deadband(value: float, deadband: float) -> float:
         value = max(-1.0, min(1.0, value))
         if abs(value) <= deadband:
             return 0.0

@@ -10,15 +10,20 @@ class CurrentBotConfig:
     """The current robot's hardware IDs and tuning values."""
 
     CONFIG = RobotConfig(
-        driver_controller=0,
-        operator_controller=1,
+        driver_controller=1,
+        operator_controller=0,
         feeder=FeederConfig(
             motor_id=14,
+            target_velocity_rps=4,
+            gear_ratio=16,
         ),
         launcher=LauncherConfig(
             motor_id=17,
-            target_rev=50,
+            target_rev=53,
             target_threshold=4,
+            stuck_timeout_s=0.3,
+            stuck_acceleration_deadband_rps2=0.5,
+            unstick_rev_rps=5,
         ),
         swerve=SwerveConfig(
             imu_usb=1,
@@ -32,6 +37,9 @@ class CurrentBotConfig:
             max_steering_output=0.4,
             slew_rate=4.0,
             steering_slew_rate=3.0,
+            yaw_kp=0.7,
+            output_deadband=0.0025,
+            controller_deadband=0.05,
             fr=SwerveModuleConfig(
                 drive_motor_id=9,
                 steer_motor_id=8,

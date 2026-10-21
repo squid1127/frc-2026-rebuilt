@@ -42,6 +42,9 @@ class SwerveConfig:
         steering_scale: The scale factor for the steering modules
         steering_slew_rate: The maximum rate of change for the steering modules
         max_steering_output: The maximum output for the steering control
+        yaw_kp: Proportional gain for heading hold, in normalized output per radian
+        output_deadband: Deadband applied to normalized drivetrain outputs
+        controller_deadband: Deadband applied to controller inputs
         fr: Configuration for the front-right swerve module
         fl: Configuration for the front-left swerve module
         br: Configuration for the back-right swerve module
@@ -59,6 +62,9 @@ class SwerveConfig:
     steering_scale: float
     steering_slew_rate: float
     max_steering_output: float
+    yaw_kp: float
+    output_deadband: float
+    controller_deadband: float
     fr: SwerveModuleConfig
     fl: SwerveModuleConfig
     br: SwerveModuleConfig
@@ -79,3 +85,9 @@ class SwerveConfig:
             raise ValueError("Swerve steering gain cannot be negative")
         if not 0 <= self.max_steering_output <= 1:
             raise ValueError("Maximum steering output must be between zero and one")
+        if self.yaw_kp < 0:
+            raise ValueError("Swerve yaw proportional gain cannot be negative")
+        if not 0 <= self.output_deadband < 1:
+            raise ValueError("Swerve output deadband must be between zero and one")
+        if not 0 <= self.controller_deadband < 1:
+            raise ValueError("Swerve controller deadband must be between zero and one")

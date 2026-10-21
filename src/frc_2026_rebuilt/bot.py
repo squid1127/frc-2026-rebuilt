@@ -7,6 +7,7 @@ from .commands import SwerveDriveCommand, SwerveTuneYaw
 from .config import RobotConfig
 from .current_config import CurrentBotConfig
 from .logger import get_logger
+from .network import NTBool
 from .subsystems.feeder import FeederSubsystem
 from .subsystems.launcher import LauncherSubsystem
 from .subsystems.swerve import DrivetrainSubsystem
@@ -23,6 +24,7 @@ class RobotContainer(commands2.TimedCommandRobot):
         super().__init__()
         self.config = config
         self.last_control_state: None | tuple[bool, bool, bool] = None
+        self.nt_competition_mode = NTBool("Bot/Competition Mode", True)
 
         # Controllers
         self.driver_controller = commands2.button.CommandXboxController(
@@ -69,9 +71,35 @@ class RobotContainer(commands2.TimedCommandRobot):
         self.driver_controller.leftTrigger().whileTrue(
             commands2.cmd.run(self.swerve.lock, self.swerve)
         )
-        self.driver_controller.x().whileTrue(
+        self.driver_controller.x().and_(
+            lambda: not self.nt_competition_mode.value
+        ).whileTrue(
             commands2.cmd.runOnce(
                 lambda: self.swerve.reset_pose(),
+                self.swerve,
+            )
+        )
+        self.driver_controller.povUp().whileTrue(
+            commands2.cmd.runOnce(
+                lambda: self.swerve.rotate_to(0),
+                self.swerve,
+            )
+        )
+        self.driver_controller.povDown().whileTrue(
+            commands2.cmd.runOnce(
+                lambda: self.swerve.rotate_to(180),
+                self.swerve,
+            )
+        )
+        self.driver_controller.povLeft().whileTrue(
+            commands2.cmd.runOnce(
+                lambda: self.swerve.rotate_to(90),
+                self.swerve,
+            )
+        )
+        self.driver_controller.povRight().whileTrue(
+            commands2.cmd.runOnce(
+                lambda: self.swerve.rotate_to(270),
                 self.swerve,
             )
         )
@@ -89,17 +117,24 @@ class RobotContainer(commands2.TimedCommandRobot):
                 self.launcher,
             )
         )
+        self.operator_controller.x().whileTrue(
+            commands2.cmd.startEnd(
+                self.launcher.unstick,
+                self.launcher.stop,
+                self.launcher,
+            )
+        )
         self.operator_controller.y().whileTrue(
-            commands2.cmd.runOnce(lambda: self.feeder.set(0.5), self.feeder)
+            commands2.cmd.runOnce(self.feeder.forward, self.feeder)
         )
         self.operator_controller.rightBumper().whileTrue(
             commands2.cmd.startEnd(
-                lambda: self.feeder.set(0.5), lambda: self.feeder.stop(), self.feeder
+                self.feeder.forward, self.feeder.stop, self.feeder
             )
         )
         self.operator_controller.rightTrigger().whileTrue(
             commands2.cmd.startEnd(
-                lambda: self.feeder.set(-0.5), lambda: self.feeder.stop(), self.feeder
+                self.feeder.reverse, self.feeder.stop, self.feeder
             )
         )
 
