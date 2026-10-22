@@ -2,6 +2,7 @@
 
 import commands2
 from phoenix6.canbus import CANBus as PhCANBus
+from wpilib import DriverStation
 
 from .commands import SwerveDriveCommand, SwerveTuneYaw
 from .config import RobotConfig
@@ -52,7 +53,10 @@ class RobotContainer(commands2.TimedCommandRobot):
 
         # Commands
         self.field_relative_drive = SwerveDriveCommand(
-            self.swerve, self.driver_controller, field_relative=True
+            self.swerve,
+            self.driver_controller,
+            field_relative=True,
+            field_relative_inverted=self._should_invert_field_relative,
         )
         self.tune_yaw = SwerveTuneYaw(
             self.swerve, self.driver_controller, 0.075, 10, 1.5
@@ -61,6 +65,17 @@ class RobotContainer(commands2.TimedCommandRobot):
         self.set_bindings()
 
         logger.info("Bot initialization complete...")
+
+    def _should_invert_field_relative(self) -> bool:
+        """Invert field-oriented translation for the red alliance in comp mode."""
+        alliance = DriverStation.getAlliance()
+        return (
+            self.nt_competition_mode.value and alliance == DriverStation.Alliance.kRed
+        )
+
+    def autonomousInit(self) -> None:
+        """Set the autonomous starting heading to face backward."""
+        self.swerve.reset_yaw(0 if self._should_invert_field_relative() else 180)
 
     def set_bindings(self) -> None:
         """Sets the controller bindings for each subsystem"""
@@ -128,14 +143,10 @@ class RobotContainer(commands2.TimedCommandRobot):
             commands2.cmd.runOnce(self.feeder.forward, self.feeder)
         )
         self.operator_controller.rightBumper().whileTrue(
-            commands2.cmd.startEnd(
-                self.feeder.forward, self.feeder.stop, self.feeder
-            )
+            commands2.cmd.startEnd(self.feeder.forward, self.feeder.stop, self.feeder)
         )
         self.operator_controller.rightTrigger().whileTrue(
-            commands2.cmd.startEnd(
-                self.feeder.reverse, self.feeder.stop, self.feeder
-            )
+            commands2.cmd.startEnd(self.feeder.reverse, self.feeder.stop, self.feeder)
         )
 
     def robotPeriodic(self) -> None:
@@ -147,12 +158,14 @@ class RobotContainer(commands2.TimedCommandRobot):
             flags = []
             if state[0]:
                 flags.append("ENABLED")
+            else:
+                flags.append("DISABLED")
             if state[1]:
                 flags.append("AUTO")
             if state[2]:
                 flags.append("TEST")
-            if not flags:
-                flags.append("NONE")
+            if self._should_invert_field_relative():
+                flags.append("INVERT")
 
             logger.info(f"State transition: {', '.join(flags)}")
             self.last_control_state = state

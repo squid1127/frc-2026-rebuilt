@@ -81,6 +81,7 @@ class DrivetrainSubsystem(Subsystem):
         self._coasting_after_manual_rotation = False
         self._last_periodic_timestamp = Timer.getFPGATimestamp()
         self.field_relative = True
+        self.field_relative_inverted = False
         self.align_only = False
         self.forward_limiter = SlewRateLimiter(config.slew_rate)
         self.strafe_limiter = SlewRateLimiter(config.slew_rate)
@@ -94,6 +95,7 @@ class DrivetrainSubsystem(Subsystem):
         self.nt_slew_rate = NTFloat("Drivetrain/Slew Rate", config.slew_rate)
         self.nt_yaw = NTFloat("Drivetrain/Yaw", 0)
         self.nt_offset = NTFloat("Drivetrain/Yaw Offset", 0)
+        self.nt_yaw_pid_p = NTFloat("Drivetrain/Yaw PID P", config.yaw_kp)
         self.nt_f_out = NTFloat("Drivetrain/Output", 0)
         self.nt_s_out = NTFloat("Drivetrain/Strafe Output", 0)
         self.nt_y_out = NTFloat("Drivetrain/Yaw Output", 0)
@@ -117,11 +119,14 @@ class DrivetrainSubsystem(Subsystem):
             module.stop()
         self.yaw_target = None
 
-    def reset_yaw(self) -> None:
-        """Reset the yaw measurement of the bot (including offset)"""
+    def reset_yaw(self, heading: float | Rotation2d = 0) -> None:
+        """Reset yaw to the requested heading in degrees or as a Rotation2d."""
         self.imu.reset_yaw()
-        self.yaw_offset = Rotation2d()
-        yaw = self.imu.get_yaw()
+        if not isinstance(heading, Rotation2d):
+            heading = Rotation2d.fromDegrees(heading)
+        self.yaw_offset = heading
+        self.nt_offset.set(self.yaw_offset.radians())
+        yaw = self.yaw
         self.yaw_pid.reset()
         current_pose = self.odometry.getPose()
         self.odometry.resetPosition(
@@ -129,7 +134,8 @@ class DrivetrainSubsystem(Subsystem):
             self._get_module_positions(),
             Pose2d(current_pose.translation(), yaw),
         )
-        logger.info("Reset yaw")
+        self.stop_rotating()
+        logger.info("Reset yaw to %.1f degrees", yaw.degrees())
 
     def set_speed_scale(self, speed: float):
         """Change the speed multiplier of the drivetrain"""
@@ -178,6 +184,7 @@ class DrivetrainSubsystem(Subsystem):
         rotation: float = 0.0,
         *,
         field_relative: bool = True,
+        field_relative_inverted: bool = False,
         align_only: bool = False,
         controller_deadband: float | None = None,
     ) -> None:
@@ -189,6 +196,7 @@ class DrivetrainSubsystem(Subsystem):
 
         self.locked = False
         self.field_relative = field_relative
+        self.field_relative_inverted = field_relative_inverted
         self.align_only = align_only
         self.forward_target = self._apply_deadband(
             forward,
@@ -236,6 +244,7 @@ class DrivetrainSubsystem(Subsystem):
             return
 
         yaw_rate_rad_per_sec = math.radians(self.imu.get_yaw_rate_dps())
+        self.yaw_pid.setP(self.nt_yaw_pid_p.value)
         if abs(self.rotation_target) > 0:
             self.yaw_target = yaw
             self.yaw_pid.reset()
@@ -297,11 +306,14 @@ class DrivetrainSubsystem(Subsystem):
             self.config.trackwidth_m / 2,
         )
         if self.field_relative:
+            field_yaw = self.yaw
+            if self.field_relative_inverted:
+                field_yaw += Rotation2d.fromDegrees(180)
             chassis_speeds = ChassisSpeeds.fromFieldRelativeSpeeds(
                 forward * self.max_speed_mps,
                 strafe * self.max_speed_mps,
                 rotation * max_angular_speed,
-                self.yaw,
+                field_yaw,
             )
         else:
             chassis_speeds = ChassisSpeeds(
